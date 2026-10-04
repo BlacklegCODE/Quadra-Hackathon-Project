@@ -1,0 +1,1392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Skill Gap Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --ink: #f5f2ff;
+    --muted: #a99fd0;
+    --card: rgba(255, 255, 255, 0.055);
+    --card-strong: rgba(255, 255, 255, 0.09);
+    --line: rgba(255, 255, 255, 0.11);
+    --pink: #ff4fa3;
+    --cyan: #3ee8e0;
+    --amber: #ffc247;
+    --lime: #b6ff5c;
+    --violet: #8b5cf6;
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --error: #ff6b6b;
+    --hue: 265;
+    --sy: 0px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Manrope", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    background:
+      radial-gradient(1200px 700px at 10% -10%, hsl(calc(var(--hue) + 10) 60% 26%) 0%, transparent 60%),
+      radial-gradient(900px 600px at 110% 10%, hsl(calc(var(--hue) + 70) 55% 20%) 0%, transparent 55%),
+      hsl(var(--hue) 50% 10%);
+    background-attachment: fixed;
+    overflow-x: hidden;
+    cursor: none;
+  }
+  button, input, select, label { cursor: none; }
+  input[type="range"], select, input[type="text"] { cursor: none; }
+  @media (hover: none) { body, button, input, select, label { cursor: auto; } }
+
+  /* ---------- effects layer ---------- */
+  #fx { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 60; }
+  .aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  .blob {
+    position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.5;
+    will-change: transform; animation: drift 22s ease-in-out infinite alternate;
+  }
+  .blob.b1 { width: 520px; height: 520px; background: var(--pink); top: -160px; left: -120px; }
+  .blob.b2 { width: 460px; height: 460px; background: var(--cyan); top: 30%; right: -160px; animation-duration: 28s; opacity: 0.35; }
+  .blob.b3 { width: 420px; height: 420px; background: var(--violet); bottom: -140px; left: 30%; animation-duration: 25s; opacity: 0.45; }
+  .blob.b4 { width: 300px; height: 300px; background: var(--amber); top: 55%; left: 8%; animation-duration: 31s; opacity: 0.22; }
+  @keyframes drift { from { margin: 0; } to { margin: 40px 30px 0 0; } }
+
+  .app { position: relative; z-index: 1; max-width: 1040px; margin: 0 auto; }
+  .pad { padding: 0 24px 80px; }
+  .muted { color: var(--muted); margin: 0.25rem 0; }
+  .small { font-size: 0.85rem; }
+  h1, h2, h3 {
+    font-family: "Sora", system-ui, sans-serif; font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 0.5rem;
+  }
+  h1 { font-size: clamp(2rem, 4.2vw, 2.9rem); }
+  h2 { font-size: 1.4rem; margin-top: 2.4rem; }
+  h3 { font-size: 1.1rem; }
+
+  .rise { animation: rise 0.8s var(--ease) both; animation-delay: var(--d, 0ms); }
+  @keyframes rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- top bar & tabs ---------- */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;
+    margin: 18px 24px 0; padding: 14px 20px; border-radius: 18px;
+    background: var(--card); border: 1px solid var(--line);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  }
+  .brand { font-family: "Sora", sans-serif; font-weight: 700; font-size: 1.25rem; display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 10px;
+    background: conic-gradient(from 200deg, var(--pink), var(--amber), var(--lime), var(--cyan), var(--violet), var(--pink));
+    box-shadow: 0 0 22px rgba(255, 79, 163, 0.5); animation: spin 9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .switch { display: flex; gap: 10px; align-items: center; }
+  .switch select { width: auto; min-width: 220px; }
+
+  .tabs {
+    display: flex; gap: 6px; margin: 22px 24px 0; padding: 6px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    overflow-x: auto; width: fit-content; max-width: calc(100% - 48px);
+  }
+  .tabs button {
+    font: inherit; font-weight: 600; font-size: 0.95rem; background: transparent; border: 0;
+    color: var(--muted); padding: 10px 18px; border-radius: 12px; white-space: nowrap;
+    transition: color 0.3s, background 0.4s var(--ease), transform 0.2s;
+  }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button:active { transform: scale(0.97); }
+  .tabs button[aria-current="true"] {
+    color: #120a2a; background: linear-gradient(120deg, var(--cyan), var(--lime));
+    box-shadow: 0 6px 22px rgba(62, 232, 224, 0.35);
+  }
+  main { padding-top: 32px; }
+
+  /* ---------- forms & buttons ---------- */
+  input, select {
+    font: inherit; width: 100%; padding: 12px 14px; border-radius: 12px;
+    border: 1px solid var(--line); background: rgba(10, 4, 30, 0.6); color: var(--ink);
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 4px rgba(62, 232, 224, 0.18); }
+  select option { background: #1b0f3d; color: var(--ink); }
+  label { display: grid; gap: 8px; font-weight: 600; font-size: 0.92rem; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: 0.97rem; color: #fff; border: 0;
+    padding: 13px 22px; border-radius: 14px; justify-self: start;
+    background: linear-gradient(120deg, var(--pink), var(--violet));
+    box-shadow: 0 10px 30px rgba(255, 79, 163, 0.35);
+    transition: transform 0.25s var(--ease), box-shadow 0.25s;
+    position: relative; overflow: hidden;
+  }
+  .btn::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
+    transform: translateX(-120%);
+  }
+  .btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(255, 79, 163, 0.45); }
+  .btn:not(:disabled):hover::after { transform: translateX(120%); transition: transform 0.9s var(--ease); }
+  .btn:not(:disabled):active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.4; box-shadow: none; }
+  .btn.ghost { background: var(--card-strong); box-shadow: none; border: 1px solid var(--line); }
+  .btn.ghost:not(:disabled):hover { box-shadow: 0 10px 26px rgba(139, 92, 246, 0.35); }
+
+  .stack { display: grid; gap: 20px; max-width: 460px; margin-top: 26px; }
+  .lede { font-size: 1.12rem; color: var(--muted); max-width: 54ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
+  .chip {
+    font: inherit; font-weight: 600; color: var(--ink); padding: 9px 16px; border-radius: 999px;
+    background: var(--card); border: 1px solid var(--line);
+    transition: transform 0.25s var(--ease), border-color 0.25s, background 0.25s;
+  }
+  .chip:hover { transform: translateY(-2px); border-color: var(--pink); background: var(--card-strong); }
+
+  /* ---------- cards & notices ---------- */
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 24px;
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  }
+  .notice { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; margin: 16px 0; }
+  .notice.error-box { border-color: rgba(255, 107, 107, 0.5); max-width: 580px; margin: 48px auto; box-shadow: 0 0 40px rgba(255, 107, 107, 0.15); }
+  .error { color: var(--error); }
+
+  .skeleton {
+    border-radius: 14px; min-height: 96px; margin: 12px 0;
+    background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.12), rgba(255,255,255,.04));
+    background-size: 220% 100%; animation: shimmer 1.4s linear infinite;
+  }
+  @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+  /* ---------- hero & score ring ---------- */
+  .hero {
+    display: grid; grid-template-columns: auto 1fr; gap: 36px; align-items: center;
+    padding: 28px; border-radius: 26px; margin-bottom: 8px;
+    background: linear-gradient(135deg, rgba(255,79,163,.12), rgba(62,232,224,.10));
+    border: 1px solid var(--line); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  }
+  .ring-wrap { position: relative; width: 210px; height: 210px; }
+  .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+  .ring-glow { filter: drop-shadow(0 0 14px rgba(62, 232, 224, 0.7)); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .score {
+    font-family: "Sora", sans-serif; font-weight: 700; font-size: 3.4rem; line-height: 1;
+    background: linear-gradient(90deg, var(--cyan), var(--lime));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .score small { font-size: 1.3rem; }
+  .hero-text .kicker {
+    display: inline-block; font-weight: 700; font-size: 0.85rem; color: var(--cyan);
+    background: rgba(62,232,224,.12); padding: 6px 12px; border-radius: 999px; margin: 0 0 14px;
+  }
+  .hero-text h1 { margin-bottom: 10px; }
+  .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .stat { padding: 12px 16px; border-radius: 16px; min-width: 130px; background: rgba(10, 4, 30, 0.45); border: 1px solid var(--line); }
+  .stat strong { display: block; font-family: "Sora", sans-serif; font-size: 1.5rem; }
+  .stat.ready strong { color: var(--lime); }
+  .stat.todo strong { color: var(--amber); }
+  .meter { height: 10px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; margin-top: 18px; }
+  .meter span {
+    display: block; height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--pink), var(--amber), var(--lime));
+    background-size: 200% 100%; animation: flow 4s linear infinite; transition: width 1.2s var(--ease);
+  }
+  @keyframes flow { to { background-position: 200% 0; } }
+  .delta-up { color: var(--lime); font-weight: 700; }
+  .delta-down { color: var(--pink); font-weight: 700; }
+
+  /* ---------- face bubbles ---------- */
+  .face {
+    position: relative; flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 26px; line-height: 1;
+    background:
+      radial-gradient(circle at 30% 26%, rgba(255,255,255,.7) 0%, rgba(255,255,255,.12) 38%, transparent 60%),
+      radial-gradient(circle at 50% 50%, hsl(var(--tint) 90% 62%), hsl(var(--tint) 85% 42%));
+    box-shadow: inset 0 -8px 14px rgba(0,0,0,.25), inset 0 2px 6px rgba(255,255,255,.35), 0 10px 24px hsla(var(--tint) 90% 50% / .35);
+    animation: bob 3.4s ease-in-out infinite; animation-delay: var(--bd, 0ms);
+  }
+  .face::before {
+    content: ""; position: absolute; top: 6px; left: 10px; width: 14px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,.55); transform: rotate(-25deg); animation: glint 4s ease-in-out infinite;
+  }
+  .face .emoji { display: inline-block; transform-origin: 50% 80%; animation: pop 0.7s var(--ease) both; }
+  .face.sad .emoji { animation: pop 0.7s var(--ease) both, sob 2.2s ease-in-out 0.7s infinite; }
+  .face.happy .emoji { animation: pop 0.7s var(--ease) both, cheer 1.8s ease-in-out 0.7s infinite; }
+  .face.best { box-shadow: inset 0 -8px 14px rgba(0,0,0,.25), 0 0 0 4px rgba(182,255,92,.35), 0 0 28px rgba(182,255,92,.7); }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes glint { 0%, 100% { opacity: .9; } 50% { opacity: .35; } }
+  @keyframes pop { 0% { transform: scale(0.2) rotate(-25deg); } 60% { transform: scale(1.3) rotate(10deg); } 100% { transform: scale(1) rotate(0); } }
+  @keyframes sob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(2px) rotate(-6deg); } }
+  @keyframes cheer { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-3px) rotate(-8deg); } 75% { transform: translateY(-3px) rotate(8deg); } }
+
+  /* ---------- gap ladder & result rows ---------- */
+  .section-intro { color: var(--muted); max-width: 62ch; }
+  .ladder { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 10px; }
+  .ladder li {
+    display: grid; grid-template-columns: 1.4fr 1fr 52px auto; gap: 18px; align-items: center;
+    padding: 14px 20px; border-radius: 18px; background: var(--card); border: 1px solid var(--line);
+    animation: rise 0.7s var(--ease) both; animation-delay: var(--d, 0ms);
+    transition: transform 0.3s var(--ease), background 0.3s, border-color 0.3s;
+  }
+  .ladder li:hover { transform: translateX(4px); background: var(--card-strong); }
+  .ladder li.gap { border-left: 3px solid var(--pink); }
+  .ladder li.ready { border-left: 3px solid var(--lime); }
+  .ladder-meta { font-size: 0.88rem; color: var(--muted); text-align: right; min-width: 150px; font-weight: 600; }
+  .ladder li.gap .ladder-meta { color: var(--amber); }
+  .ladder li.ready .ladder-meta { color: var(--lime); }
+  .pips { display: flex; gap: 6px; }
+  .pip { width: 40px; height: 14px; border-radius: 6px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); }
+  .pip.on {
+    border-color: transparent; background: linear-gradient(90deg, var(--cyan), var(--violet));
+    transform-origin: left center; animation: fillIn 0.55s var(--ease) both; animation-delay: var(--pd, 0ms);
+  }
+  .ladder li.ready .pip.on { background: linear-gradient(90deg, var(--lime), var(--cyan)); }
+  .pip.target { border: 2px solid var(--amber); box-shadow: 0 0 12px rgba(255,194,71,.45); }
+  @keyframes fillIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+  .result-row {
+    display: grid; grid-template-columns: 1fr auto auto auto; gap: 16px; align-items: center;
+    padding: 14px 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--line);
+    animation: rise 0.6s var(--ease) both; animation-delay: var(--d, 0ms);
+  }
+  .result-row .arrow { color: var(--muted); font-size: 1.3rem; }
+  .result-row .tally { font-size: 0.88rem; color: var(--muted); font-weight: 600; text-align: right; min-width: 170px; }
+
+  /* ---------- roadmap ---------- */
+  .ranking { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; counter-reset: rank; }
+  .ranking li {
+    counter-increment: rank; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 12px 18px; border-radius: 14px; background: var(--card); border: 1px solid var(--line);
+    animation: rise 0.6s var(--ease) both; animation-delay: var(--d, 0ms);
+  }
+  .ranking li::before {
+    content: counter(rank); font-family: "Sora", sans-serif; font-weight: 700;
+    width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; margin-right: 12px;
+    color: #120a2a; background: linear-gradient(135deg, var(--amber), var(--pink));
+  }
+  .ranking li > span:first-child { flex: 1; font-weight: 600; }
+  .phase {
+    margin-top: 14px; padding: 22px; border-radius: 22px; background: var(--card); border: 1px solid var(--line);
+    animation: rise 0.7s var(--ease) both; animation-delay: var(--d, 0ms);
+  }
+  .phase header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .phase-tag {
+    font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 999px;
+    background: linear-gradient(120deg, rgba(139,92,246,.35), rgba(255,79,163,.35)); border: 1px solid var(--line);
+  }
+  .item { padding: 14px 0 0; margin-top: 14px; border-top: 1px dashed var(--line); }
+  .item p { margin: 6px 0 0; color: var(--muted); }
+  .projects { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-top: 14px; }
+  .project {
+    padding: 22px; border-radius: 20px; background: var(--card-strong); border: 1px solid var(--line);
+    transition: transform 0.35s var(--ease), box-shadow 0.35s, border-color 0.35s;
+    animation: rise 0.7s var(--ease) both; animation-delay: var(--d, 0ms);
+  }
+  .project:hover { transform: translateY(-6px); border-color: var(--cyan); box-shadow: 0 18px 40px rgba(62,232,224,.15); }
+  .project p { margin: 8px 0; }
+  .diff { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: rgba(182,255,92,.15); color: var(--lime); }
+  .diff.Medium { background: rgba(255,194,71,.15); color: var(--amber); }
+  .diff.Hard { background: rgba(255,79,163,.18); color: var(--pink); }
+
+  /* ---------- quiz ---------- */
+  .quiz-shell { max-width: 760px; margin: 0 auto; }
+  .quiz-progress { height: 8px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; margin: 6px 0 22px; }
+  .quiz-progress span {
+    display: block; height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--pink), var(--cyan), var(--lime));
+    transition: width 0.6s var(--ease);
+  }
+  .q-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .q-count { color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+  .q-tag {
+    font-size: 0.8rem; font-weight: 700; padding: 6px 12px; border-radius: 999px;
+    background: rgba(62,232,224,.12); color: var(--cyan); border: 1px solid rgba(62,232,224,.3);
+  }
+  .q-title { font-size: 1.3rem; margin: 16px 0 20px; line-height: 1.35; }
+  .options { display: grid; gap: 10px; }
+  .option {
+    display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+    font: inherit; font-weight: 600; color: var(--ink);
+    padding: 14px 18px; border-radius: 16px; background: var(--card); border: 1px solid var(--line);
+    animation: rise 0.5s var(--ease) both; animation-delay: var(--d, 0ms);
+    transition: transform 0.25s var(--ease), border-color 0.25s, background 0.25s, box-shadow 0.25s;
+  }
+  .option:hover { transform: translateX(5px); border-color: var(--cyan); background: var(--card-strong); }
+  .option:active { transform: scale(0.99); }
+  .option .letter {
+    flex: 0 0 34px; height: 34px; border-radius: 11px; display: grid; place-items: center;
+    font-family: "Sora", sans-serif; font-weight: 700; background: rgba(255,255,255,.08); transition: background 0.25s, color 0.25s;
+  }
+  .option.selected {
+    border-color: var(--cyan);
+    background: linear-gradient(120deg, rgba(255,79,163,.22), rgba(62,232,224,.18));
+    box-shadow: 0 10px 30px rgba(62,232,224,.2);
+  }
+  .option.selected .letter { background: var(--cyan); color: #120a2a; }
+  .qnav { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+  .review { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; }
+  .review li {
+    padding: 16px 18px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); border-left: 3px solid;
+    animation: rise 0.6s var(--ease) both; animation-delay: var(--d, 0ms);
+  }
+  .review li.ok { border-left-color: var(--lime); }
+  .review li.bad { border-left-color: var(--pink); }
+  .review .verdict { font-weight: 700; font-size: 0.85rem; }
+  .review .ok-text { color: var(--lime); }
+  .review .bad-text { color: var(--pink); }
+  .review p { margin: 6px 0 0; }
+
+  /* ---------- skills page ---------- */
+  .inline-form {
+    display: flex; flex-wrap: wrap; gap: 14px; align-items: end; margin: 22px 0 30px; padding: 20px;
+    border-radius: 20px; background: var(--card); border: 1px solid var(--line);
+  }
+  .inline-form label { flex: 1 1 260px; }
+  .category { margin-top: 26px; }
+  .category h2 { font-size: 1rem; margin: 0 0 6px; color: var(--cyan); letter-spacing: 0; }
+  .slider-row {
+    display: grid; grid-template-columns: 170px 1fr 52px 140px; align-items: center; gap: 16px;
+    padding: 12px 18px; margin-bottom: 8px; border-radius: 16px; background: var(--card); border: 1px solid var(--line);
+    font-weight: 500; transition: background 0.3s, border-color 0.3s;
+  }
+  .slider-row:hover { background: var(--card-strong); border-color: rgba(62,232,224,.35); }
+  .slider-name { font-weight: 700; }
+  .slider-level { text-align: right; font-size: 0.88rem; font-weight: 700; color: var(--lime); }
+  .slider-level.zero { color: var(--muted); }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none; padding: 0; border: 0; background: none; height: 10px; border-radius: 99px;
+    background: linear-gradient(90deg, var(--pink) 0%, var(--cyan) var(--p, 0%), rgba(255,255,255,.12) var(--p, 0%));
+  }
+  input[type="range"]:focus { box-shadow: none; }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 0;
+    box-shadow: 0 0 0 5px rgba(62,232,224,.25), 0 4px 12px rgba(0,0,0,.4); transition: transform 0.2s var(--ease);
+  }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 5px rgba(62,232,224,.25); }
+  input[type="range"]::-moz-range-track { background: transparent; }
+  .savebar {
+    position: sticky; bottom: 18px; z-index: 5; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+    margin-top: 26px; padding: 14px 18px; border-radius: 20px;
+    background: rgba(18, 10, 42, 0.8); border: 1px solid var(--line);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 20px 50px rgba(0,0,0,.35);
+  }
+
+  /* ---------- toast ---------- */
+  .toast {
+    position: fixed; right: 24px; bottom: 24px; z-index: 70; padding: 14px 20px; border-radius: 16px; font-weight: 600;
+    background: linear-gradient(120deg, rgba(182,255,92,.95), rgba(62,232,224,.95)); color: #120a2a;
+    box-shadow: 0 16px 40px rgba(0,0,0,.4); animation: toastIn 0.5s var(--ease) both;
+  }
+  .toast.error { background: linear-gradient(120deg, #ff6b6b, #ff4fa3); color: #fff; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(20px) scale(0.96); } to { opacity: 1; transform: none; } }
+
+  /* ---------- progress chart ---------- */
+  .chart-card { margin-top: 18px; padding: 18px 14px 6px; }
+  .chart { width: 100%; height: auto; overflow: visible; }
+  .chart .grid { stroke: rgba(255,255,255,.12); stroke-dasharray: 4 6; }
+  .chart .axis { font-size: 12px; fill: var(--muted); font-family: "Manrope", sans-serif; font-weight: 600; }
+  .chart .area { fill: url(#areaGrad); opacity: 0; animation: fadeIn 1s 0.9s ease forwards; }
+  .chart .line {
+    fill: none; stroke: url(#lineGrad); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.6s var(--ease) 0.2s forwards;
+  }
+  .chart .dot { fill: #120a2a; stroke: var(--cyan); stroke-width: 3; opacity: 0; animation: fadeIn 0.5s ease forwards; animation-delay: var(--d, 0ms); }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes fadeIn { to { opacity: 1; } }
+  .history { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px; }
+  .history li {
+    display: flex; justify-content: space-between; padding: 12px 18px; border-radius: 14px;
+    background: var(--card); border: 1px solid var(--line); animation: rise 0.6s var(--ease) both; animation-delay: var(--d, 0ms);
+  }
+  .history strong { color: var(--lime); font-family: "Sora", sans-serif; }
+
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 6px; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+    .hero-text .kicker { margin-left: auto; margin-right: auto; }
+    .stat-row { justify-content: center; }
+    .ladder li { grid-template-columns: 1fr 52px; }
+    .ladder .pips { grid-column: 1 / -1; }
+    .ladder-meta { text-align: left; min-width: 0; grid-column: 1 / -1; }
+    .result-row { grid-template-columns: 1fr auto auto; }
+    .result-row .tally { grid-column: 1 / -1; text-align: left; min-width: 0; }
+    .slider-row { grid-template-columns: 1fr 44px; gap: 8px; }
+    .slider-row input[type="range"] { grid-column: 1 / -1; }
+    .slider-level { text-align: left; }
+    .pip { width: 28px; }
+    .pad { padding: 0 16px 80px; }
+    .topbar { margin: 12px 16px 0; }
+    .tabs { margin: 16px 16px 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+    #fx, .aurora { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="aurora" aria-hidden="true">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div class="blob b4"></div>
+</div>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const KEY = "skillgap.studentId";
+const LEVELS = ["Not started", "Aware", "Beginner", "Practicing", "Proficient", "Expert"];
+const FACES = ["😭", "😟", "😕", "🙂", "😄", "🤩"]; // saddest at 0, happiest at 5
+const TABS = [
+  { key: "dashboard", label: "Readiness" },
+  { key: "roadmap", label: "Roadmap" },
+  { key: "quiz", label: "Quiz" },
+  { key: "skills", label: "My skills" },
+  { key: "progress", label: "Progress" },
+];
+const OPTION_LETTERS = ["A", "B", "C", "D"];
+
+async function api(path, opts = {}) {
+  const res = await fetch("/api" + path, { headers: { "Content-Type": "application/json" }, ...opts });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `Request failed (${res.status}).`);
+  }
+  return res.json();
+}
+
+function useFetch(loader, deps) {
+  const [state, setState] = useState({ data: null, error: "", loading: true });
+  useEffect(() => {
+    let alive = true;
+    setState({ data: null, error: "", loading: true });
+    loader()
+      .then((data) => alive && setState({ data, error: "", loading: false }))
+      .catch((e) => alive && setState({ data: null, error: e.message, loading: false }));
+    return () => { alive = false; };
+  }, deps);
+  return state;
+}
+
+function useCountUp(target, duration = 1400) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    let frame;
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      setValue(target * (1 - Math.pow(1 - t, 4)));
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
+  return value;
+}
+
+function FaceBubble({ level, delay = 0, best }) {
+  const mood = level <= 1 ? "sad" : level >= 4 ? "happy" : "";
+  const tint = 350 - level * 52; // red at 0, lime at 5
+  return (
+    <div
+      className={"face " + mood + (best ? " best" : "")}
+      style={{ "--tint": tint, "--bd": delay + "ms" }}
+      title={`${LEVELS[level]} (level ${level} of 5)`}
+      aria-label={`Mood: ${LEVELS[level]}`}
+      role="img"
+    >
+      <span className="emoji" key={level}>{FACES[level]}</span>
+    </div>
+  );
+}
+
+function Skeleton({ rows = 3 }) {
+  return (
+    <div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="skeleton" style={{ animationDelay: i * 120 + "ms" }} />
+      ))}
+    </div>
+  );
+}
+
+function Notice({ children, error, delay = 0 }) {
+  return <div className={"notice rise" + (error ? " error-box" : "")} style={{ "--d": delay + "ms" }}>{children}</div>;
+}
+
+function Toast({ toast }) {
+  if (!toast) return null;
+  return <div className={"toast" + (toast.error ? " error" : "")} role="status">{toast.text}</div>;
+}
+
+/* ---------- full-screen effects ---------- */
+function Effects() {
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(hover: none)").matches) return;
+
+    const canvas = document.getElementById("fx");
+    const ctx = canvas.getContext("2d");
+    const root = document.documentElement;
+    const blobs = Array.from(document.querySelectorAll(".blob"));
+    const palette = ["#ff4fa3", "#3ee8e0", "#ffc247", "#b6ff5c", "#8b5cf6", "#ffffff"];
+
+    let W = 0, H = 0, dpr = 1;
+    function resize() {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    const pointer = { x: W / 2, y: H / 2, sx: W / 2, sy: H / 2, vx: 0, vy: 0, inside: false };
+    const trail = [], sparks = [], specks = [];
+    const ambient = Array.from({ length: 70 }, () => ({
+      x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.8 + 0.4,
+      vx: 0, vy: 0, depth: Math.random() * 0.8 + 0.2,
+      color: palette[Math.floor(Math.random() * palette.length)],
+    }));
+
+    let scrollY = window.scrollY, scrollVel = 0;
+    let bgX = 0, bgY = 0, hue = 265;
+
+    function onMove(e) {
+      pointer.x = e.clientX; pointer.y = e.clientY; pointer.inside = true;
+      const sp = Math.hypot(pointer.vx, pointer.vy);
+      const n = Math.min(4, 1 + Math.floor(sp / 6));
+      for (let i = 0; i < n; i++) {
+        sparks.push({
+          x: pointer.x, y: pointer.y,
+          vx: (Math.random() - 0.5) * 3 - pointer.vx * 0.12,
+          vy: (Math.random() - 0.5) * 3 - pointer.vy * 0.12 - 0.6,
+          life: 1, size: Math.random() * 2 + 1,
+          color: palette[Math.floor(Math.random() * palette.length)],
+        });
+      }
+    }
+    function onOut(e) { if (!e.relatedTarget) pointer.inside = false; }
+    function onScroll() { const y = window.scrollY; scrollVel = y - scrollY; scrollY = y; }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseout", onOut);
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    let raf;
+    function frame() {
+      const dx = pointer.x - pointer.sx, dy = pointer.y - pointer.sy;
+      pointer.sx += (pointer.x - pointer.sx) * 0.35;
+      pointer.sy += (pointer.y - pointer.sy) * 0.35;
+      pointer.vx = dx; pointer.vy = dy;
+
+      const nx = (pointer.x / W) * 2 - 1, ny = (pointer.y / H) * 2 - 1;
+      bgX += (nx - bgX) * 0.05; bgY += (ny - bgY) * 0.05;
+      scrollVel *= 0.9;
+      hue = 265 + bgX * 45 + ((scrollY * 0.03) % 90);
+      root.style.setProperty("--hue", hue.toFixed(1));
+      root.style.setProperty("--sy", scrollY + "px");
+      blobs.forEach((b, i) => {
+        const depth = (i + 1) * 14;
+        b.style.transform = `translate3d(${(bgX * depth * 2.2).toFixed(1)}px, ${(bgY * depth * 1.4 + scrollY * (0.08 + i * 0.03)).toFixed(1)}px, 0)`;
+      });
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "lighter";
+
+      for (const p of ambient) {
+        p.vx += (Math.random() - 0.5) * 0.02;
+        p.vy += (Math.random() - 0.5) * 0.02 - scrollVel * 0.015 * p.depth;
+        if (pointer.inside) {
+          const ddx = p.x - pointer.x, ddy = p.y - pointer.y;
+          const d2 = ddx * ddx + ddy * ddy;
+          if (d2 < 22000) { const f = ((22000 - d2) / 22000) * 0.12; p.vx += ddx * f * 0.02; p.vy += ddy * f * 0.02; }
+        }
+        p.vx *= 0.97; p.vy *= 0.97;
+        p.x += p.vx * p.depth; p.y += p.vy * p.depth;
+        if (p.x < -10) p.x = W + 10; if (p.x > W + 10) p.x = -10;
+        if (p.y < -10) p.y = H + 10; if (p.y > H + 10) p.y = -10;
+        ctx.globalAlpha = 0.35 + p.depth * 0.4;
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * p.depth + 0.4, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      if (pointer.inside) trail.push({ x: pointer.x, y: pointer.y, life: 1 });
+      for (let i = trail.length - 1; i >= 0; i--) {
+        trail[i].life -= 0.035;
+        if (trail[i].life <= 0) trail.splice(i, 1);
+      }
+      if (trail.length > 1) {
+        ctx.lineCap = "round";
+        for (let i = 1; i < trail.length; i++) {
+          const a = trail[i - 1], b = trail[i], t = b.life;
+          ctx.strokeStyle = `hsla(${(hue + i * 2) % 360}, 95%, 70%, ${t * 0.85})`;
+          ctx.lineWidth = Math.max(0.5, t * 7);
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+      }
+      if (trail.length && Math.random() < 0.6) {
+        const t = trail[Math.floor(Math.random() * trail.length)];
+        specks.push({ x: t.x, y: t.y, vx: (Math.random() - 0.5) * 0.8, vy: Math.random() * 0.6 + 0.1, life: 1, color: palette[Math.floor(Math.random() * 4)] });
+      }
+      for (let i = specks.length - 1; i >= 0; i--) {
+        const s = specks[i];
+        s.x += s.vx; s.y += s.vy; s.vy += 0.02; s.life -= 0.02;
+        if (s.life <= 0) { specks.splice(i, 1); continue; }
+        ctx.globalAlpha = s.life * 0.8; ctx.fillStyle = s.color;
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.life * 1.6, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.x += s.vx; s.y += s.vy; s.vy += 0.08; s.vx *= 0.98; s.life -= 0.035;
+        if (s.life <= 0) { sparks.splice(i, 1); continue; }
+        ctx.globalAlpha = s.life; ctx.fillStyle = s.color;
+        ctx.shadowColor = s.color; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.size * s.life + 0.5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+
+      if (pointer.inside) {
+        const speed = Math.hypot(pointer.vx, pointer.vy);
+        const ang = speed > 0.5 ? Math.atan2(-pointer.vy, -pointer.vx) : -Math.PI / 4;
+        const len = 26 + Math.min(20, speed * 2);
+        const ex = pointer.x + Math.cos(ang) * len, ey = pointer.y + Math.sin(ang) * len;
+        const flicker = 0.85 + Math.random() * 0.25;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(pointer.x, pointer.y); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.strokeStyle = "rgba(255,79,163,0.9)"; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(pointer.x, pointer.y); ctx.lineTo(ex, ey); ctx.stroke();
+        const g = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, 26 * flicker);
+        g.addColorStop(0, "rgba(255,255,255,0.95)");
+        g.addColorStop(0.25, "rgba(255,199,71,0.7)");
+        g.addColorStop(0.6, "rgba(255,79,163,0.25)");
+        g.addColorStop(1, "rgba(255,79,163,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(pointer.x, pointer.y, 26 * flicker, 0, Math.PI * 2); ctx.fill();
+      }
+
+      ctx.globalCompositeOperation = "source-over";
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseout", onOut);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+  return null;
+}
+
+/* ---------------- onboarding ---------------- */
+function Onboarding({ onCreated }) {
+  const roles = useFetch(() => api("/roles"), []);
+  const [name, setName] = useState("");
+  const [roleId, setRoleId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const selected = (roles.data || []).find((r) => String(r.id) === roleId);
+
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true); setErr("");
+    try {
+      const created = await api("/students", {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim(), target_role_id: Number(roleId) }),
+      });
+      onCreated(created);
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="rise" style={{ "--d": "80ms" }}>
+      <h1>Where do you stand against the role you want?</h1>
+      <p className="lede">Add your name and a target role. Then rate your skills or take the quiz and watch the gap close.</p>
+      <form onSubmit={submit} className="stack card">
+        <label>Your name
+          <input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Harsh" />
+        </label>
+        <label>Target role
+          <select required value={roleId} onChange={(e) => setRoleId(e.target.value)}>
+            <option value="">Choose a role</option>
+            {(roles.data || []).map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
+          </select>
+        </label>
+        {selected && <p className="muted rise" style={{ margin: 0 }}>{selected.description}</p>}
+        {roles.error && <p className="error">Could not load roles: {roles.error}</p>}
+        {err && <p className="error">{err}</p>}
+        <button className="btn" disabled={busy || !name.trim() || !roleId}>{busy ? "Creating..." : "Create profile"}</button>
+      </form>
+    </section>
+  );
+}
+
+/* ---------------- readiness ---------------- */
+function ScoreRing({ value }) {
+  const r = 92;
+  const C = 2 * Math.PI * r;
+  const animated = useCountUp(value);
+  const offset = C * (1 - animated / 100);
+  return (
+    <div className="ring-wrap">
+      <svg viewBox="0 0 220 220" aria-hidden="true">
+        <defs>
+          <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#3ee8e0" />
+            <stop offset="55%" stopColor="#b6ff5c" />
+            <stop offset="100%" stopColor="#ffc247" />
+          </linearGradient>
+        </defs>
+        <circle cx="110" cy="110" r={r} fill="none" stroke="rgba(255,255,255,.1)" strokeWidth="14" />
+        <circle cx="110" cy="110" r={r} fill="none" stroke="url(#ringGrad)" strokeWidth="14"
+          strokeLinecap="round" strokeDasharray={C} strokeDashoffset={offset} className="ring-glow" />
+      </svg>
+      <div className="ring-center">
+        <div className="score">{Math.round(animated)}<small>%</small></div>
+        <div className="small muted">ready</div>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ student, version }) {
+  const a = useFetch(() => api(`/students/${student.id}/analysis`), [student.id, version]);
+  if (a.loading) return <Skeleton rows={4} />;
+  if (a.error) return <Notice error>{a.error} Choose a target role and save your skills under My skills.</Notice>;
+
+  const { readiness, summary, skills, role } = a.data;
+  return (
+    <>
+      <section className="hero rise">
+        <ScoreRing value={readiness} />
+        <div className="hero-text">
+          <span className="kicker">Target: {role.title}</span>
+          <h1>Your path to {role.title}</h1>
+          <p className="muted">Every skill below is weighted by how much the role depends on it.</p>
+          <div className="meter"><span style={{ width: readiness + "%" }} /></div>
+          <div className="stat-row">
+            <div className="stat ready"><strong>{summary.ready_skills}</strong><span className="small muted">skills ready</span></div>
+            <div className="stat todo"><strong>{summary.gap_skills}</strong><span className="small muted">to close</span></div>
+            <div className="stat"><strong>{summary.total_skills}</strong><span className="small muted">total skills</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Gap ladder</h2>
+        <p className="section-intro">
+          Sorted by priority. Filled segments are your level. The amber outline marks what this role needs.
+          The face shows how you feel about each skill, from 😭 at zero to 🤩 at expert.
+        </p>
+        <ul className="ladder">
+          {skills.map((r, i) => (
+            <li key={r.skill_id} className={r.gap > 0 ? "gap" : "ready"} style={{ "--d": 150 + i * 55 + "ms" }}>
+              <div>
+                <strong>{r.skill}</strong>
+                <div className="muted small">{r.category}</div>
+              </div>
+              <div className="pips" aria-label={`${r.skill}: ${r.current_label}, role needs ${r.required_label}`}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <span key={n} style={{ "--pd": 300 + i * 55 + n * 70 + "ms" }}
+                    className={"pip" + (n <= r.current ? " on" : "") + (n === r.required ? " target" : "")} />
+                ))}
+              </div>
+              <FaceBubble level={r.current} delay={i * 260} best={r.gap === 0 && r.current === 5} />
+              <span className="ladder-meta">{r.gap > 0 ? `Gap ${r.gap}, weight ${r.importance}/5` : "Met"}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </>
+  );
+}
+
+/* ---------------- roadmap ---------------- */
+function ProjectList({ projects }) {
+  return (
+    <section>
+      <h2>Build these to close gaps</h2>
+      {projects.length === 0 ? (
+        <p className="muted">No matching projects for your current gaps.</p>
+      ) : (
+        <div className="projects">
+          {projects.map((p, i) => (
+            <div key={p.id} className="project" style={{ "--d": i * 90 + "ms" }}>
+              <h3>{p.title}</h3>
+              <p className="muted">{p.description}</p>
+              <span className={"diff " + p.difficulty}>{p.difficulty}</span>
+              <p className="small muted">Closes: {p.covers.join(", ")}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Roadmap({ student, version }) {
+  const a = useFetch(() => api(`/students/${student.id}/analysis`), [student.id, version]);
+  if (a.loading) return <Skeleton rows={3} />;
+  if (a.error) return <Notice error>{a.error} Choose a target role first.</Notice>;
+
+  const { skills, roadmap, projects, role } = a.data;
+  const missing = skills.filter((r) => r.gap > 0);
+
+  if (missing.length === 0) {
+    return (
+      <>
+        <Notice>
+          <h2 style={{ marginTop: 0 }}>No gaps for {role.title}</h2>
+          <p className="muted">You meet every requirement. Time to aim higher.</p>
+        </Notice>
+        <ProjectList projects={projects} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <section>
+        <h2>Priority ranking</h2>
+        <p className="section-intro">Priority is the gap multiplied by how much the role weighs that skill.</p>
+        <ol className="ranking">
+          {missing.map((r, i) => (
+            <li key={r.skill_id} style={{ "--d": i * 60 + "ms" }}>
+              <span>{r.skill}</span>
+              <span className="muted small">gap {r.gap}, priority {r.priority}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+      <section>
+        <h2>Learning roadmap</h2>
+        {roadmap.map((p, i) => (
+          <article key={p.phase} className="phase" style={{ "--d": i * 120 + "ms" }}>
+            <header>
+              <h3 style={{ margin: 0 }}>Phase {p.phase}</h3>
+              <span className="phase-tag">{p.weeks}</span>
+            </header>
+            {p.items.map((it) => (
+              <div key={it.skill} className="item">
+                <div>
+                  <strong>{it.skill}</strong>{" "}
+                  <span className="muted small">{it.from_label} to {it.to_label}, about {it.estimated_weeks} weeks</span>
+                </div>
+                <p className="small">{it.resource}</p>
+              </div>
+            ))}
+          </article>
+        ))}
+      </section>
+      <ProjectList projects={projects} />
+    </>
+  );
+}
+
+/* ---------------- quiz ---------------- */
+function Quiz({ student, notify, onChanged, goTo }) {
+  const [phase, setPhase] = useState("intro"); // intro | loading | question | submitting | result
+  const [quiz, setQuiz] = useState(null);
+  const [answers, setAnswers] = useState([]);
+  const [index, setIndex] = useState(0);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+
+  if (!student.target_role) {
+    return <Notice>Choose a target role first, under My skills. Then come back to take the quiz.</Notice>;
+  }
+
+  async function start() {
+    setPhase("loading"); setError("");
+    try {
+      const q = await api(`/students/${student.id}/quiz`);
+      setQuiz(q);
+      setAnswers(Array(q.total).fill(null));
+      setIndex(0);
+      setPhase("question");
+    } catch (e) {
+      setError(e.message);
+      setPhase("intro");
+    }
+  }
+
+  function pick(optionIndex) {
+    const next = answers.slice();
+    next[index] = optionIndex;
+    setAnswers(next);
+  }
+
+  async function submit() {
+    setPhase("submitting"); setError("");
+    try {
+      const r = await api(`/quiz/${quiz.attempt_id}/submit`, {
+        method: "POST",
+        body: JSON.stringify({ answers }),
+      });
+      setResult(r);
+      setPhase("result");
+      notify(`Quiz scored. Readiness is now ${r.readiness}%.`);
+      onChanged();
+    } catch (e) {
+      setError(e.message);
+      setPhase("question");
+    }
+  }
+
+  if (phase === "intro") {
+    return (
+      <section className="quiz-shell rise">
+        <h1>Test your {student.target_role.title} skills</h1>
+        <p className="lede">
+          Answer 20 questions. Your levels update from your score, so you don't have to rate yourself.
+          Questions and answer options are shuffled every time.
+        </p>
+        <div className="card" style={{ marginTop: 22 }}>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Each skill is scored on its own questions. Getting every question on a skill right sets that skill to Expert.
+            Your manual ratings for the tested skills are replaced. Skills not covered by the quiz keep their current levels.
+          </p>
+          {error && <p className="error">{error}</p>}
+          <button className="btn" onClick={start}>Start quiz</button>
+        </div>
+      </section>
+    );
+  }
+
+  if (phase === "loading" || phase === "submitting") {
+    return (
+      <section className="quiz-shell">
+        <p className="muted">{phase === "loading" ? "Preparing your questions..." : "Scoring your answers..."}</p>
+        <Skeleton rows={3} />
+      </section>
+    );
+  }
+
+  if (phase === "question") {
+    const q = quiz.questions[index];
+    const picked = answers[index];
+    const answeredCount = answers.filter((a) => a !== null).length;
+    const allAnswered = answeredCount === quiz.total;
+    return (
+      <section className="quiz-shell">
+        <div className="quiz-progress" aria-hidden="true">
+          <span style={{ width: (answeredCount / quiz.total) * 100 + "%" }} />
+        </div>
+        <div className="card rise" key={index}>
+          <div className="q-meta">
+            <span className="q-count">Question {index + 1} of {quiz.total} · {answeredCount} answered</span>
+            <span className="q-tag">{q.skill}</span>
+          </div>
+          <h2 className="q-title">{q.question}</h2>
+          <div className="options">
+            {q.options.map((opt, i) => (
+              <button
+                key={i}
+                className={"option" + (picked === i ? " selected" : "")}
+                style={{ "--d": i * 70 + "ms" }}
+                onClick={() => pick(i)}
+                aria-pressed={picked === i}
+              >
+                <span className="letter">{OPTION_LETTERS[i]}</span>
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && <p className="error">{error}</p>}
+
+        <div className="qnav">
+          <button className="btn ghost" onClick={() => setIndex((i) => Math.max(0, i - 1))} disabled={index === 0}>Previous</button>
+          {index < quiz.total - 1 ? (
+            <button className="btn" onClick={() => setIndex((i) => i + 1)}>Next</button>
+          ) : (
+            <button className="btn" onClick={submit} disabled={!allAnswered}>
+              {allAnswered ? "Submit quiz" : `Answer all questions to submit`}
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  // result
+  const percent = Math.round((result.score / result.total) * 100);
+  const delta = result.readiness - result.readiness_before;
+  return (
+    <section className="quiz-shell">
+      <section className="hero rise">
+        <ScoreRing value={percent} />
+        <div className="hero-text">
+          <span className="kicker">Quiz complete</span>
+          <h1>{result.score} of {result.total} correct</h1>
+          <p className="muted">
+            Readiness moved from <strong>{result.readiness_before}%</strong> to <strong>{result.readiness}%</strong>{" "}
+            <span className={delta >= 0 ? "delta-up" : "delta-down"}>
+              ({delta >= 0 ? "+" : ""}{delta.toFixed(1)})
+            </span>
+          </p>
+          <div className="stat-row">
+            <button className="btn" onClick={start}>Take a new quiz</button>
+            <button className="btn ghost" onClick={() => goTo("dashboard")}>See readiness</button>
+          </div>
+        </div>
+      </section>
+
+      <h2>Your skill levels</h2>
+      <div style={{ display: "grid", gap: 10 }}>
+        {result.skills.map((s, i) => (
+          <div key={s.skill} className="result-row" style={{ "--d": 120 + i * 70 + "ms" }}>
+            <strong>{s.skill}</strong>
+            <FaceBubble level={s.previous_level} />
+            <span className="arrow">→</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <FaceBubble level={s.level} best={s.level === 5} />
+              <span className="tally">{s.correct}/{s.total} correct, {s.label}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h2>Review</h2>
+      <p className="muted">Every question with the correct answer and why it matters.</p>
+      <ol className="review">
+        {result.review.map((r, i) => (
+          <li key={i} className={r.is_correct ? "ok" : "bad"} style={{ "--d": Math.min(i, 12) * 50 + "ms" }}>
+            <span className={"verdict " + (r.is_correct ? "ok-text" : "bad-text")}>
+              {r.is_correct ? "Correct" : "Incorrect"} · {r.skill}
+            </span>
+            <p><strong>{r.question}</strong></p>
+            <p className="small muted">Your answer: {r.your_answer}</p>
+            {!r.is_correct && <p className="small">Correct answer: <strong>{r.correct_answer}</strong></p>}
+            <p className="small muted">{r.explanation}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/* ---------------- my skills ---------------- */
+function SkillProfile({ student, onChanged, notify }) {
+  const skills = useFetch(() => api("/skills"), []);
+  const saved = useFetch(() => api(`/students/${student.id}/skills`), [student.id]);
+  const roles = useFetch(() => api("/roles"), []);
+  const [levels, setLevels] = useState({});
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [roleId, setRoleId] = useState("");
+
+  useEffect(() => {
+    if (saved.data) { setLevels(saved.data.levels); setDirty(false); }
+  }, [saved.data]);
+
+  const lvl = (id) => levels[id] ?? 0;
+
+  const grouped = {};
+  (skills.data || []).forEach((s) => { (grouped[s.category] = grouped[s.category] || []).push(s); });
+
+  async function save() {
+    setBusy(true);
+    const payload = {};
+    (skills.data || []).forEach((s) => { payload[s.id] = lvl(s.id); });
+    try {
+      const r = await api(`/students/${student.id}/skills`, { method: "PUT", body: JSON.stringify({ levels: payload }) });
+      setDirty(false);
+      notify(r.readiness !== null ? `Saved. Readiness is now ${r.readiness}%.` : "Saved.");
+      onChanged();
+    } catch (e) {
+      notify(e.message, true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeRole() {
+    if (!roleId) return;
+    setBusy(true);
+    try {
+      await api(`/students/${student.id}`, { method: "PATCH", body: JSON.stringify({ target_role_id: Number(roleId) }) });
+      setRoleId("");
+      notify("Target role updated.");
+      onChanged();
+    } catch (e) {
+      notify(e.message, true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (skills.loading || saved.loading) return <Skeleton rows={5} />;
+  if (skills.error || saved.error) return <Notice error>{skills.error || saved.error}</Notice>;
+
+  let rowIndex = 0;
+  return (
+    <section>
+      <h1 className="rise">My skills</h1>
+      <p className="muted rise" style={{ "--d": "60ms" }}>
+        Target: <strong style={{ color: "var(--cyan)" }}>{student.target_role ? student.target_role.title : "None yet"}</strong>
+      </p>
+
+      <div className="inline-form rise" style={{ "--d": "120ms" }}>
+        <label>Change target role
+          <select value={roleId} onChange={(e) => setRoleId(e.target.value)}>
+            <option value="">Keep current role</option>
+            {(roles.data || []).map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
+          </select>
+        </label>
+        <button className="btn ghost" onClick={changeRole} disabled={!roleId || busy}>Update role</button>
+      </div>
+
+      <p className="muted">Rate yourself from 0 to 5, or take the quiz to set these automatically. Watch the face react as you move each slider.</p>
+
+      {Object.entries(grouped).map(([category, list]) => (
+        <div key={category} className="category">
+          <h2>{category}</h2>
+          {list.map((s) => {
+            const v = lvl(s.id);
+            const delay = 150 + rowIndex++ * 35;
+            return (
+              <label key={s.id} className="slider-row rise" style={{ "--d": delay + "ms" }}>
+                <span className="slider-name">{s.name}</span>
+                <input
+                  type="range" min="0" max="5" step="1" value={v}
+                  style={{ "--p": (v / 5) * 100 + "%" }}
+                  onChange={(e) => {
+                    setLevels({ ...levels, [s.id]: Number(e.target.value) });
+                    setDirty(true);
+                  }}
+                />
+                <FaceBubble level={v} />
+                <span className={"slider-level" + (v === 0 ? " zero" : "")}>{LEVELS[v]}</span>
+              </label>
+            );
+          })}
+        </div>
+      ))}
+
+      <div className="savebar">
+        <button className="btn" onClick={save} disabled={busy || !dirty}>
+          {busy ? "Saving..." : dirty ? "Save skills" : "Saved"}
+        </button>
+        <span className="muted small">{dirty ? "You have unsaved changes." : "All changes saved."}</span>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------- progress ---------------- */
+function Progress({ student, version }) {
+  const p = useFetch(() => api(`/students/${student.id}/progress`), [student.id, version]);
+  if (p.loading) return <Skeleton rows={3} />;
+  if (p.error) return <Notice error>{p.error}</Notice>;
+
+  const points = p.data || [];
+  if (points.length === 0) {
+    return <Notice><p>No snapshots yet. Save your skills or take a quiz to start tracking.</p></Notice>;
+  }
+
+  const W = 640, H = 240, PAD = 40;
+  const x = (i) => (points.length === 1 ? W / 2 : PAD + (i * (W - 2 * PAD)) / (points.length - 1));
+  const y = (v) => H - PAD - (v / 100) * (H - 2 * PAD);
+  const path = points.map((pt, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(pt.readiness)}`).join(" ");
+  const area = `${path} L${x(points.length - 1)},${H - PAD} L${x(0)},${H - PAD} Z`;
+  const latest = points[points.length - 1].readiness;
+  const delta = latest - points[0].readiness;
+
+  return (
+    <>
+      <section className="hero rise">
+        <div className="ring-wrap" style={{ width: 150, height: 150 }}>
+          <div className="ring-center"><div className="score" style={{ fontSize: "2.4rem" }}>{latest}<small>%</small></div></div>
+        </div>
+        <div className="hero-text">
+          <span className="kicker">Latest readiness</span>
+          <h1>{delta >= 0 ? "Moving up" : "Slipped a little"}</h1>
+          <p className="muted">{delta >= 0 ? "Up" : "Down"} {Math.abs(delta).toFixed(1)} points since your first snapshot.</p>
+        </div>
+      </section>
+
+      <div className="card chart-card rise" style={{ "--d": "150ms" }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="Readiness over time">
+          <defs>
+            <linearGradient id="lineGrad" x1="0" x2="1">
+              <stop offset="0%" stopColor="#ff4fa3" />
+              <stop offset="50%" stopColor="#3ee8e0" />
+              <stop offset="100%" stopColor="#b6ff5c" />
+            </linearGradient>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3ee8e0" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#3ee8e0" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[0, 50, 100].map((v) => (
+            <g key={v}>
+              <line x1={PAD} x2={W - PAD} y1={y(v)} y2={y(v)} className="grid" />
+              <text x={6} y={y(v) + 4} className="axis">{v}%</text>
+            </g>
+          ))}
+          <path d={area} className="area" />
+          <path d={path} pathLength="1" className="line" />
+          {points.map((pt, i) => (
+            <circle key={i} cx={x(i)} cy={y(pt.readiness)} r="5" className="dot" style={{ "--d": 900 + i * 90 + "ms" }}>
+              <title>{new Date(pt.created_at).toLocaleString() + ": " + pt.readiness + "%"}</title>
+            </circle>
+          ))}
+        </svg>
+      </div>
+
+      <ul className="history">
+        {[...points].reverse().map((pt, i) => (
+          <li key={i} style={{ "--d": 200 + i * 60 + "ms" }}>
+            <span className="muted">{new Date(pt.created_at).toLocaleString()}</span>
+            <strong>{pt.readiness}%</strong>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/* ---------------- app shell ---------------- */
+function App() {
+  const [students, setStudents] = useState([]);
+  const [studentId, setStudentId] = useState(() => Number(localStorage.getItem(KEY)) || null);
+  const [tab, setTab] = useState("dashboard");
+  const [version, setVersion] = useState(0);
+  const [boot, setBoot] = useState({ loading: true, error: "" });
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+
+  function notify(text, error = false) {
+    clearTimeout(toastTimer.current);
+    setToast({ text, error });
+    toastTimer.current = setTimeout(() => setToast(null), 2800);
+  }
+
+  async function loadStudents() {
+    const list = await api("/students");
+    setStudents(list);
+    return list;
+  }
+
+  useEffect(() => {
+    loadStudents()
+      .then(() => setBoot({ loading: false, error: "" }))
+      .catch((e) => setBoot({ loading: false, error: e.message }));
+  }, []);
+
+  const student = students.find((s) => s.id === studentId) || null;
+
+  function selectStudent(id) {
+    setStudentId(id);
+    if (id) localStorage.setItem(KEY, String(id));
+    else localStorage.removeItem(KEY);
+    setTab("dashboard");
+  }
+
+  async function changed() {
+    await loadStudents();
+    setVersion((v) => v + 1);
+  }
+
+  if (boot.loading) return <div className="app pad"><Skeleton rows={3} /></div>;
+  if (boot.error) {
+    return (
+      <div className="app">
+        <Notice error>
+          <p>Could not reach the app server.</p>
+          <p className="muted">{boot.error}</p>
+          <p>Make sure the backend is running, then reload this page.</p>
+        </Notice>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app">
+      <header className="topbar rise">
+        <div className="brand"><span className="brand-mark" />Skill Gap</div>
+        {students.length > 0 && (
+          <label className="switch">
+            <span className="muted small">Profile</span>
+            <select value={student ? student.id : ""} onChange={(e) => selectStudent(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">Select a profile</option>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}{s.target_role ? " (" + s.target_role.title + ")" : ""}</option>
+              ))}
+            </select>
+          </label>
+        )}
+      </header>
+
+      {!student ? (
+        <main className="pad">
+          {students.length > 0 && (
+            <div className="chips rise">
+              {students.map((s) => <button key={s.id} className="chip" onClick={() => selectStudent(s.id)}>{s.name}</button>)}
+            </div>
+          )}
+          <Onboarding onCreated={async (created) => { await loadStudents(); selectStudent(created.id); }} />
+        </main>
+      ) : (
+        <>
+          <nav className="tabs rise" style={{ "--d": "100ms" }} aria-label="Sections">
+            {TABS.map((t) => (
+              <button key={t.key} aria-current={tab === t.key ? "true" : undefined} onClick={() => setTab(t.key)}>{t.label}</button>
+            ))}
+          </nav>
+          <main className="pad">
+            {tab !== "quiz" && (
+              <div key={tab}>
+                {tab === "dashboard" && <Dashboard student={student} version={version} />}
+                {tab === "roadmap" && <Roadmap student={student} version={version} />}
+                {tab === "skills" && <SkillProfile student={student} onChanged={changed} notify={notify} />}
+                {tab === "progress" && <Progress student={student} version={version} />}
+              </div>
+            )}
+            {/* Kept mounted while hidden, so an in-progress quiz survives switching tabs. */}
+            <div hidden={tab !== "quiz"}>
+              <Quiz key={student.id} student={student} notify={notify} onChanged={changed} goTo={setTab} />
+            </div>
+          </main>
+        </>
+      )}
+
+      <Effects />
+      <Toast toast={toast} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
